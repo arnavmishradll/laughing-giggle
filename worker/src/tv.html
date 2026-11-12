@@ -2,13 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Sigma Nu TV</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=Oswald:wght@400;500;600&family=Noto+Serif+Display:wght@900&family=Playfair+Display:wght@800;900&family=Yellowtail&display=swap">
 <link rel="stylesheet" href="/static/menu.css">
 <style>
-  html, body { margin: 0; height: 100%; background: #0b1240; overflow: hidden; cursor: none; }
+  html, body { margin: 0; width: 100%; height: 100%; background: #0b1240; overflow: hidden; cursor: none; }
+  #frame { position: fixed; left: 0; top: 0; right: 0; bottom: 0; overflow: hidden; }
   #stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; overflow: hidden; background: #0b1240; }
   .screen { position: absolute; inset: 0; opacity: 0; visibility: hidden; transition: opacity 0.9s ease, visibility 0s linear 0.9s; }
   .screen.on { opacity: 1; visibility: visible; transition: opacity 0.9s ease, visibility 0s; }
@@ -40,7 +41,7 @@
 </style>
 </head>
 <body>
-<div id="stage">
+<div id="frame"><div id="stage">
   <div class="screen" id="s-menu"></div>
   <div class="screen" id="s-slide"><img id="slideImg" alt=""></div>
   <div class="screen" id="s-calendar">
@@ -51,6 +52,7 @@
   <div id="bar"></div>
   <div id="offline">Offline — showing last saved content</div>
 </div>
+</div>
 <script src="/static/menu.js"></script>
 <script>
 (function () {
@@ -59,23 +61,46 @@
   var stage = document.getElementById("stage");
   var state = null, order = [], idx = -1, timer = null, calKey = "", started = false;
 
-  function scale() {
-    var s = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
-    stage.style.transform = "translate(" + (window.innerWidth - 1920 * s) / 2 + "px," + (window.innerHeight - 1080 * s) / 2 + "px) scale(" + s + ")";
+  // Fit the 1920x1080 design to whatever size the TV browser reports.
+  // Fire TV's WebView can report its size late or oddly, so measure several ways and re-check often.
+  function viewSize() {
+    var f = document.getElementById("frame");
+    var cands = [[f.clientWidth, f.clientHeight], [document.documentElement.clientWidth, document.documentElement.clientHeight], [window.innerWidth, window.innerHeight]];
+    if (window.visualViewport) cands.push([window.visualViewport.width, window.visualViewport.height]);
+    var best = null;
+    for (var i = 0; i < cands.length; i++) {
+      var c = cands[i];
+      if (c[0] > 50 && c[1] > 50 && (!best || c[0] < best[0])) best = c;
+    }
+    return best || [1920, 1080];
   }
+  var lastScale = "";
+  function scale() {
+    var v = viewSize(), s = Math.min(v[0] / 1920, v[1] / 1080);
+    var t = "translate(" + (v[0] - 1920 * s) / 2 + "px," + (v[1] - 1080 * s) / 2 + "px) scale(" + s + ")";
+    if (t !== lastScale) { stage.style.transform = t; lastScale = t; }
+  }
+  setTimeout(scale, 300); setTimeout(scale, 1500); setInterval(scale, 5000);
+  if (window.visualViewport) window.visualViewport.addEventListener("resize", scale);
   window.addEventListener("resize", scale); scale();
   document.getElementById("adminUrl").textContent = location.host + "/admin";
 
   function tz() { return (state && state.settings && state.settings.timezone) || "America/New_York"; }
 
   function calendarSrc(raw) {
-    raw = (raw || "").trim();
+    raw = String(raw || "").trim().replace(/^["']|["']$/g, "");
     if (!raw) return "";
-    var id = raw;
-    var m = raw.match(/[?&]src=([^&]+)/);
-    if (m) id = decodeURIComponent(m[1]);
-    else if (/calendar\/ical\/([^/]+)/.test(raw)) id = decodeURIComponent(raw.match(/calendar\/ical\/([^/]+)/)[1]);
-    return id;
+    var id = raw, m;
+    try {
+      if ((m = raw.match(/[?&]cid=([^&"'\s]+)/))) {
+        var b = decodeURIComponent(m[1]).replace(/-/g, "+").replace(/_/g, "/");
+        while (b.length % 4) b += "=";
+        id = atob(b);
+      } else if ((m = raw.match(/[?&]src=([^&"'\s]+)/))) id = decodeURIComponent(m[1]);
+      else if ((m = raw.match(/calendar\/ical\/([^/"'\s]+)/))) id = decodeURIComponent(m[1]);
+      else id = decodeURIComponent(raw);
+    } catch (e) {}
+    return id.trim();
   }
 
   function buildCalendar() {

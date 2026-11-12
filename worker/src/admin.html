@@ -333,7 +333,7 @@
       timezone: $("tz").value || "America/New_York", geminiModel: $("model").value, screens: screens,
     }).then(function (j) {
       state = j.state; fillStatus(); fillSettings();
-      msg("setMsg", "✅ Saved. The TV updates within a minute.", "ok");
+      msg("setMsg", "✅ Saved. The TV updates within a minute." + (state.settings.calendar ? "<br>Calendar ID in use: <b>" + MenuRender.esc(state.settings.calendar) + "</b>" : ""), "ok");
     }).catch(function (e) { if (e.status === 401) return showLogin(); msg("setMsg", e.message, "err"); })
       .then(function () { b.disabled = false; });
   };

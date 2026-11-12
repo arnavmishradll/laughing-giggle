@@ -126,7 +126,7 @@ async function saveSettings(request, env) {
   const body = await request.json();
   const s = await getState(env);
   const next = Object.assign({}, s.settings);
-  if (typeof body.calendar === "string") next.calendar = body.calendar.trim();
+  if (typeof body.calendar === "string") next.calendar = calendarId(body.calendar);
   if (["WEEK", "MONTH", "AGENDA"].includes(body.calendarMode)) next.calendarMode = body.calendarMode;
   if (typeof body.calendarZoom === "number" && body.calendarZoom >= 0.5 && body.calendarZoom <= 3) next.calendarZoom = body.calendarZoom;
   if (typeof body.timezone === "string" && body.timezone) next.timezone = body.timezone.trim();
@@ -139,6 +139,22 @@ async function saveSettings(request, env) {
   s.settings = next;
   await putState(env, s);
   return json({ ok: true, state: await getPublicState(env) });
+}
+// Accepts a Calendar ID, embed code, public URL, iCal link or "shareable link" (?cid=...) and returns the plain ID
+function calendarId(raw) {
+  raw = String(raw || "").trim().replace(/^["']|["']$/g, "");
+  if (!raw) return "";
+  let id = raw, m;
+  try {
+    if ((m = raw.match(/[?&]cid=([^&"'\s]+)/))) {
+      let b = decodeURIComponent(m[1]).replace(/-/g, "+").replace(/_/g, "/");
+      while (b.length % 4) b += "=";
+      id = atob(b);
+    } else if ((m = raw.match(/[?&]src=([^&"'\s]+)/))) id = decodeURIComponent(m[1]);
+    else if ((m = raw.match(/calendar\/ical\/([^/"'\s]+)/))) id = decodeURIComponent(m[1]);
+    else id = decodeURIComponent(raw);
+  } catch (e) {}
+  return id.trim();
 }
 function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
 

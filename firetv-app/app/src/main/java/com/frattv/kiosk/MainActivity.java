@@ -65,8 +65,11 @@ public class MainActivity extends Activity {
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
         s.setMediaPlaybackRequiresUserGesture(false);
-        s.setLoadWithOverviewMode(true);
-        s.setUseWideViewPort(true);
+        // Page size = the screen size, no automatic zooming (the page scales itself to fit)
+        s.setLoadWithOverviewMode(false);
+        s.setUseWideViewPort(false);
+        s.setSupportZoom(false);
+        s.setTextZoom(100);
         s.setCacheMode(WebSettings.LOAD_DEFAULT);
         web.setWebChromeClient(new WebChromeClient());
         web.setWebViewClient(new WebViewClient() {
