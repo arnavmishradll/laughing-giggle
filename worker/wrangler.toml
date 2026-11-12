@@ -1,0 +1,23 @@
+name = "frat-tv"
+main = "src/index.js"
+compatibility_date = "2025-06-01"
+
+# Free Cloudflare KV storage for the menu, slide image and settings.
+# Run:  npx wrangler kv namespace create TV
+# then paste the id it prints below.
+[[kv_namespaces]]
+binding = "TV"
+id = "PASTE_YOUR_KV_ID_HERE"
+
+[vars]
+# Default Gemini model. You can also change it later from the phone admin page (Settings).
+GEMINI_MODEL = "gemini-2.5-flash"
+
+# Secrets (NOT stored in this file). Set them once with:
+#   npx wrangler secret put GEMINI_API_KEY
+#   npx wrangler secret put ADMIN_PASSWORD
+
+[[rules]]
+type = "Text"
+globs = ["**/*.html", "**/*.css", "**/static/*.js"]
+fallthrough = true

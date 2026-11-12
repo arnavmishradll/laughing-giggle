@@ -1,0 +1,44 @@
+name: Build Fire TV app
+
+# Run it from the GitHub "Actions" tab → "Build Fire TV app" → "Run workflow",
+# paste your TV page address, and it publishes the APK as a Release you can
+# download straight onto the Fire Stick with the Downloader app.
+on:
+  workflow_dispatch:
+    inputs:
+      tv_url:
+        description: "Your TV page address (e.g. https://frat-tv.yourname.workers.dev/tv)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Build APK
+        working-directory: firetv-app
+        run: gradle assembleRelease -PtvUrl="${{ github.event.inputs.tv_url }}" --no-daemon
+
+      - name: Rename APK
+        run: cp firetv-app/app/build/outputs/apk/release/app-release.apk house-tv.apk
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: app-${{ github.run_number }}
+          name: House TV app (build ${{ github.run_number }})
+          make_latest: true
+          files: house-tv.apk

@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sigma Nu TV</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=Oswald:wght@400;500;600&family=Noto+Serif+Display:wght@900&family=Playfair+Display:wght@800;900&family=Yellowtail&display=swap">
+<link rel="stylesheet" href="/static/menu.css">
+<style>
+  html, body { margin: 0; height: 100%; background: #0b1240; overflow: hidden; cursor: none; }
+  #stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; overflow: hidden; background: #0b1240; }
+  .screen { position: absolute; inset: 0; opacity: 0; visibility: hidden; transition: opacity 0.9s ease, visibility 0s linear 0.9s; }
+  .screen.on { opacity: 1; visibility: visible; transition: opacity 0.9s ease, visibility 0s; }
+
+  /* uploaded slide */
+  #s-slide { background: #000; display: flex; align-items: center; justify-content: center; }
+  #s-slide img { max-width: 100%; max-height: 100%; width: 100%; height: 100%; object-fit: contain; }
+
+  /* calendar */
+  #s-calendar { background: #fbf8f2; font-family: "Oswald", sans-serif; }
+  .cal-head { position: absolute; left: 0; right: 0; top: 0; height: 120px; background: #14205c; color: #fff; display: flex; align-items: center; padding: 0 60px; gap: 28px; border-bottom: 6px solid #ea6a22; }
+  .cal-letters { font-family: "Noto Serif Display", serif; font-weight: 900; font-size: 84px; line-height: 1; color: #fff; -webkit-text-stroke: 3px #ea6a22; paint-order: stroke fill; }
+  .cal-head .ttl { font-family: "Playfair Display", serif; font-weight: 900; font-size: 60px; letter-spacing: 4px; }
+  .cal-head .ttl span { color: #ea6a22; }
+  .cal-head .clk { margin-left: auto; font-size: 40px; font-weight: 500; }
+  .cal-head .clk b { color: #ea6a22; font-weight: 600; }
+  .cal-body { position: absolute; left: 50px; right: 50px; top: 156px; bottom: 40px; background: #fff; border: 4px solid #ea6a22; border-radius: 10px; overflow: hidden; }
+  .cal-body iframe { border: 0; transform-origin: 0 0; background: #fff; }
+
+  /* empty state */
+  #s-empty { background: #14205c; color: #fff; font-family: "Oswald", sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  #s-empty .big { font-family: "Noto Serif Display", serif; font-weight: 900; font-size: 200px; color: #14205c; -webkit-text-stroke: 5px #ea6a22; paint-order: stroke fill; }
+  #s-empty p { font-size: 46px; margin: 10px 0 0; }
+  #s-empty code { color: #ea6a22; }
+
+  /* progress */
+  #bar { position: absolute; left: 0; bottom: 0; height: 8px; width: 0; background: #ea6a22; z-index: 5; }
+  #offline { position: absolute; right: 24px; top: 20px; z-index: 6; background: rgba(226,52,42,0.92); color: #fff; font: 500 22px "Oswald", sans-serif; padding: 6px 14px; border-radius: 6px; display: none; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="screen" id="s-menu"></div>
+  <div class="screen" id="s-slide"><img id="slideImg" alt=""></div>
+  <div class="screen" id="s-calendar">
+    <div class="cal-head"><div class="cal-letters">&Sigma;&Nu;</div><div class="ttl">CHAPTER <span>CALENDAR</span></div><div class="clk" id="calClock"></div></div>
+    <div class="cal-body" id="calBody"></div>
+  </div>
+  <div class="screen" id="s-empty"><div class="big">&Sigma;&Nu;</div><p>Nothing uploaded yet.</p><p>Go to <code id="adminUrl"></code> on your phone.</p></div>
+  <div id="bar"></div>
+  <div id="offline">Offline — showing last saved content</div>
+</div>
+<script src="/static/menu.js"></script>
+<script>
+(function () {
+  var POLL_MS = 60 * 1000;            // check for new uploads every minute
+  var HARD_RELOAD_MS = 6 * 3600 * 1000; // full page refresh every 6 hours
+  var stage = document.getElementById("stage");
+  var state = null, order = [], idx = -1, timer = null, calKey = "", started = false;
+
+  function scale() {
+    var s = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+    stage.style.transform = "translate(" + (window.innerWidth - 1920 * s) / 2 + "px," + (window.innerHeight - 1080 * s) / 2 + "px) scale(" + s + ")";
+  }
+  window.addEventListener("resize", scale); scale();
+  document.getElementById("adminUrl").textContent = location.host + "/admin";
+
+  function tz() { return (state && state.settings && state.settings.timezone) || "America/New_York"; }
+
+  function calendarSrc(raw) {
+    raw = (raw || "").trim();
+    if (!raw) return "";
+    var id = raw;
+    var m = raw.match(/[?&]src=([^&]+)/);
+    if (m) id = decodeURIComponent(m[1]);
+    else if (/calendar\/ical\/([^/]+)/.test(raw)) id = decodeURIComponent(raw.match(/calendar\/ical\/([^/]+)/)[1]);
+    return id;
+  }
+
+  function buildCalendar() {
+    var st = state.settings, id = calendarSrc(st.calendar);
+    var key = id + "|" + st.calendarMode + "|" + st.calendarZoom + "|" + tz();
+    if (key === calKey) return;
+    calKey = key;
+    var body = document.getElementById("calBody");
+    if (!id) { body.innerHTML = ""; return; }
+    var z = st.calendarZoom || 1.35, w = body.clientWidth, h = body.clientHeight;
+    var src = "https://calendar.google.com/calendar/embed?src=" + encodeURIComponent(id) +
+      "&ctz=" + encodeURIComponent(tz()) + "&mode=" + (st.calendarMode || "WEEK") +
+      "&showTitle=0&showPrint=0&showTabs=0&showCalendars=0&showTz=0&showNav=0&showDate=1&wkst=1&bgcolor=%23ffffff";
+    body.innerHTML = '<iframe scrolling="no" style="width:' + (w / z) + "px;height:" + (h / z) + "px;transform:scale(" + z + ')" src="' + src + '"></iframe>';
+  }
+
+  function render() {
+    var s = state;
+    if (s.menu) MenuRender.render(document.getElementById("s-menu"), s.menu, { clock: true, timezone: tz() });
+    if (s.slide) {
+      var img = document.getElementById("slideImg");
+      if (img.getAttribute("src") !== s.slide.url) img.src = s.slide.url;
+    }
+    buildCalendar();
+    order = (s.settings.screens || []).filter(function (x) {
+      if (!x.enabled) return false;
+      if (x.id === "menu") return !!s.menu;
+      if (x.id === "slide") return !!s.slide;
+      if (x.id === "calendar") return !!calendarSrc(s.settings.calendar);
+      return false;
+    });
+  }
+
+  function show(id) {
+    var all = document.querySelectorAll(".screen");
+    for (var i = 0; i < all.length; i++) all[i].classList.toggle("on", all[i].id === "s-" + id);
+  }
+
+  function next() {
+    clearTimeout(timer);
+    if (!order.length) { show("empty"); bar(0); timer = setTimeout(next, 10000); return; }
+    idx = (idx + 1) % order.length;
+    var sc = order[idx];
+    show(sc.id);
+    if (sc.id === "menu") MenuRender.fit(document.getElementById("s-menu"));
+    bar(sc.seconds);
+    timer = setTimeout(next, sc.seconds * 1000);
+  }
+
+  function bar(sec) {
+    var b = document.getElementById("bar");
+    b.style.transition = "none"; b.style.width = "0";
+    void b.offsetWidth;
+    if (sec && order.length > 1) { b.style.transition = "width " + sec + "s linear"; b.style.width = "100%"; }
+  }
+
+  function calClock() {
+    var d = new Date(), el = document.getElementById("calClock");
+    try {
+      el.innerHTML = d.toLocaleDateString("en-US", { timeZone: tz(), weekday: "long", month: "long", day: "numeric" }) +
+        " &nbsp;<b>" + d.toLocaleTimeString("en-US", { timeZone: tz(), hour: "numeric", minute: "2-digit" }) + "</b>";
+    } catch (e) { el.textContent = d.toDateString(); }
+  }
+  setInterval(calClock, 15000);
+
+  function apply(newState, first) {
+    var changed = !state || newState.version !== state.version;
+    state = newState;
+    if (changed) {
+      render(); calClock();
+      try { localStorage.setItem("tvState", JSON.stringify(newState)); } catch (e) {}
+      if (!started) { started = true; idx = -1; next(); }
+    }
+  }
+
+  function poll(first) {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", "/api/state?t=" + Date.now());
+    xhr.timeout = 20000;
+    xhr.onload = function () {
+      if (xhr.status === 200) {
+        document.getElementById("offline").style.display = "none";
+        try { apply(JSON.parse(xhr.responseText), first); } catch (e) {}
+      } else fail(first);
+    };
+    xhr.onerror = xhr.ontimeout = function () { fail(first); };
+    xhr.send();
+  }
+  function fail(first) {
+    document.getElementById("offline").style.display = "block";
+    if (first && !state) {
+      try { var cached = JSON.parse(localStorage.getItem("tvState") || "null"); if (cached) apply(cached, true); } catch (e) {}
+      if (!state) { show("empty"); }
+    }
+  }
+
+  poll(true);
+  setInterval(function () { poll(false); }, POLL_MS);
+  setTimeout(function () { location.reload(); }, HARD_RELOAD_MS);
+  // midnight: re-render so the "TODAY" highlight moves
+  setInterval(function () { if (state && state.menu) MenuRender.render(document.getElementById("s-menu"), state.menu, { clock: true, timezone: tz() }); }, 30 * 60 * 1000);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { MenuRender.fit(document.getElementById("s-menu")); });
+})();
+</script>
+</body>
+</html>

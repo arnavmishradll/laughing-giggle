@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#14205c">
+<title>ΣΝ TV Admin</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=Inter:wght@400;500;600;700&family=Oswald:wght@400;500;600&family=Noto+Serif+Display:wght@900&family=Playfair+Display:wght@800;900&family=Yellowtail&display=swap">
+<link rel="stylesheet" href="/static/menu.css">
+<style>
+  :root { --navy: #14205c; --orange: #ea6a22; --bg: #f3f1ec; --card: #fff; --line: #e4e0d8; --muted: #6b6f86; --ok: #1f8a4c; --err: #c62f26; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: #1b1f33; font: 16px/1.45 Inter, system-ui, sans-serif; -webkit-text-size-adjust: 100%; }
+  header.top { background: var(--navy); color: #fff; padding: 18px 16px 16px; border-bottom: 4px solid var(--orange); position: sticky; top: 0; z-index: 10; }
+  header.top .row { max-width: 640px; margin: 0 auto; display: flex; align-items: center; gap: 12px; }
+  .letters { font: 900 34px/1 "Noto Serif Display", serif; color: #fff; -webkit-text-stroke: 1.5px var(--orange); paint-order: stroke fill; }
+  header.top h1 { font: 600 20px/1.1 Oswald, sans-serif; letter-spacing: 1px; margin: 0; }
+  header.top a { margin-left: auto; color: #fff; font-size: 14px; opacity: .85; }
+  main { max-width: 640px; margin: 0 auto; padding: 16px 16px 60px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+  .card h2 { font: 600 19px/1.2 Oswald, sans-serif; letter-spacing: .5px; color: var(--navy); margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
+  .card h2 .n { background: var(--orange); color: #fff; width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 15px; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 12px; }
+  .btn { appearance: none; border: 0; border-radius: 10px; padding: 13px 16px; font: 600 16px Inter, sans-serif; cursor: pointer; width: 100%; background: var(--navy); color: #fff; }
+  .btn.orange { background: var(--orange); }
+  .btn.ghost { background: transparent; color: var(--navy); border: 1.5px solid var(--line); }
+  .btn:disabled { opacity: .5; }
+  .btns { display: flex; gap: 10px; margin-top: 12px; }
+  .pick { display: block; border: 2px dashed #cfc9bd; border-radius: 12px; padding: 18px; text-align: center; color: var(--navy); font-weight: 600; cursor: pointer; background: #faf8f4; }
+  .pick input { display: none; }
+  .pick small { display: block; color: var(--muted); font-weight: 400; margin-top: 2px; }
+  .preview { position: relative; width: 100%; aspect-ratio: 16/9; background: #0b1240; border-radius: 10px; overflow: hidden; margin-top: 12px; }
+  .preview .inner { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; }
+  .preview img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .msg { margin-top: 10px; font-size: 14px; padding: 10px 12px; border-radius: 8px; display: none; }
+  .msg.show { display: block; }
+  .msg.ok { background: #e6f4ec; color: var(--ok); }
+  .msg.err { background: #fbe9e7; color: var(--err); }
+  .msg.info { background: #eef0f8; color: var(--navy); }
+  label.f { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin: 12px 0 4px; }
+  input[type=text], input[type=password], input[type=number], select, textarea { width: 100%; font: 16px Inter, sans-serif; padding: 11px 12px; border: 1.5px solid var(--line); border-radius: 10px; background: #fff; color: #1b1f33; }
+  textarea { min-height: 64px; resize: vertical; }
+  details.edit { margin-top: 12px; border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; }
+  details.edit summary { padding: 12px 0; font-weight: 600; color: var(--navy); cursor: pointer; }
+  .day { border-top: 1px solid var(--line); padding: 10px 0; }
+  .day h3 { margin: 4px 0; font: 600 16px Oswald, sans-serif; color: var(--navy); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .scr { display: flex; align-items: center; gap: 8px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .scr:first-child { border-top: 0; }
+  .scr .nm { flex: 1; font-weight: 600; white-space: nowrap; }
+  .scr input[type=number] { width: 80px; padding: 8px; }
+  .scr .mv { width: 36px; height: 36px; border-radius: 8px; border: 1.5px solid var(--line); background: #fff; font-size: 16px; }
+  .scr input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--orange); }
+  .now { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .now .tile { border: 1px solid var(--line); border-radius: 10px; padding: 10px; font-size: 13px; color: var(--muted); }
+  .now .tile b { display: block; color: var(--navy); font-size: 14px; }
+  #login { max-width: 400px; margin: 60px auto; }
+  .hidden { display: none !important; }
+  .spin { display: inline-block; width: 16px; height: 16px; border: 2.5px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: s .8s linear infinite; vertical-align: -3px; margin-right: 8px; }
+  @keyframes s { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<header class="top"><div class="row"><span class="letters">ΣΝ</span><h1>HOUSE TV</h1><a href="/tv" target="_blank">Open TV view ↗</a></div></header>
+
+<main>
+  <div id="login" class="card hidden">
+    <h2>Log in</h2>
+    <p class="sub">Enter the admin password you set when you deployed.</p>
+    <input type="password" id="pw" placeholder="Password" autocomplete="current-password">
+    <div class="btns"><button class="btn" id="loginBtn">Log in</button></div>
+    <div class="msg" id="loginMsg"></div>
+  </div>
+
+  <div id="app" class="hidden">
+    <div class="card">
+      <h2>On the TV now</h2>
+      <div class="now">
+        <div class="tile"><b>Menu</b><span id="nowMenu">—</span></div>
+        <div class="tile"><b>Slide</b><span id="nowSlide">—</span></div>
+        <div class="tile"><b>Calendar</b><span id="nowCal">—</span></div>
+        <div class="tile"><b>Rotation</b><span id="nowRot">—</span></div>
+      </div>
+    </div>
+
+    <!-- MENU -->
+    <div class="card">
+      <h2><span class="n">1</span> Weekly menu</h2>
+      <p class="sub">Upload the menu poster (photo or screenshot). Gemini reads it and rebuilds it as a full-screen TV slide.</p>
+      <label class="pick">📷 Choose menu image<small>JPG / PNG / screenshot</small><input type="file" id="menuFile" accept="image/*"></label>
+      <div class="msg" id="menuMsg"></div>
+      <div id="menuWork" class="hidden">
+        <div class="preview"><div class="inner" id="menuPreview"></div></div>
+        <details class="edit"><summary>✏️ Fix any text (optional)</summary><div id="menuEdit"></div></details>
+        <div class="btns"><button class="btn orange" id="menuPublish">Put menu on TV</button></div>
+      </div>
+    </div>
+
+    <!-- SLIDE -->
+    <div class="card">
+      <h2><span class="n">2</span> Slide</h2>
+      <p class="sub">The picture you saved from Google Slides (File → Download → PNG).</p>
+      <label class="pick">🖼️ Choose slide image<small>16:9 looks best</small><input type="file" id="slideFile" accept="image/*"></label>
+      <div class="msg" id="slideMsg"></div>
+      <div id="slideWork" class="hidden">
+        <div class="preview"><img id="slidePreview" alt=""></div>
+        <div class="btns"><button class="btn orange" id="slidePublish">Put slide on TV</button></div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="card">
+      <h2><span class="n">3</span> Calendar &amp; rotation</h2>
+      <p class="sub">Paste your public Google Calendar's ID or embed link (Google Calendar → Settings → your calendar → Integrate calendar).</p>
+      <label class="f">Google Calendar ID or embed link</label>
+      <input type="text" id="calInput" placeholder="something@group.calendar.google.com">
+      <div class="two">
+        <div><label class="f">Calendar view</label>
+          <select id="calMode"><option value="WEEK">Week</option><option value="MONTH">Month</option><option value="AGENDA">Agenda (list)</option></select></div>
+        <div><label class="f">Text size on TV</label>
+          <select id="calZoom"><option value="1">Normal</option><option value="1.2">Large</option><option value="1.35">Larger</option><option value="1.5">Huge</option></select></div>
+      </div>
+      <label class="f">Screens (order, on/off, seconds each)</label>
+      <div id="screens"></div>
+      <details class="edit"><summary>Advanced</summary>
+        <label class="f">Timezone</label><input type="text" id="tz" placeholder="America/New_York">
+        <label class="f">Gemini model</label><input type="text" id="model" placeholder="gemini-2.5-flash">
+        <p class="sub" style="margin-top:6px">If menu reading ever says the model isn't found, put a newer Gemini model name here.</p>
+        <div class="btns"><button class="btn ghost" id="logout">Log out of this phone</button></div>
+      </details>
+      <div class="btns"><button class="btn" id="saveSettings">Save settings</button></div>
+      <div class="msg" id="setMsg"></div>
+    </div>
+  </div>
+</main>
+
+<script src="/static/menu.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var pw = localStorage.getItem("tvAdminPw") || "";
+  var state = null, draftMenu = null, slideBlob = null;
+  var NAMES = { menu: "🍽️ Menu", slide: "🖼️ Slide", calendar: "📅 Calendar" };
+
+  function msg(id, text, kind) { var m = $(id); m.className = "msg show " + (kind || "info"); m.innerHTML = text; }
+  function clearMsg(id) { $(id).className = "msg"; }
+
+  function api(method, path, body, type) {
+    var opts = { method: method, headers: { "x-admin-password": pw } };
+    if (body instanceof Blob) { opts.body = body; opts.headers["content-type"] = type || body.type; }
+    else if (body) { opts.body = JSON.stringify(body); opts.headers["content-type"] = "application/json"; }
+    return fetch(path, opts).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) {
+        if (!r.ok) { var e = new Error(j.error || ("Error " + r.status)); e.status = r.status; throw e; }
+        return j;
+      });
+    });
+  }
+
+  // ---------- login ----------
+  function showLogin() { $("login").classList.remove("hidden"); $("app").classList.add("hidden"); }
+  function login() {
+    pw = $("pw").value;
+    api("POST", "/api/login").then(function () {
+      localStorage.setItem("tvAdminPw", pw); start();
+    }).catch(function (e) { msg("loginMsg", e.message, "err"); });
+  }
+  $("loginBtn").onclick = login;
+  $("pw").onkeydown = function (e) { if (e.key === "Enter") login(); };
+  $("logout").onclick = function () { localStorage.removeItem("tvAdminPw"); location.reload(); };
+
+  function start() {
+    $("login").classList.add("hidden"); $("app").classList.remove("hidden");
+    loadState();
+  }
+  function loadState() {
+    return fetch("/api/state?t=" + Date.now()).then(function (r) { return r.json(); }).then(function (s) { state = s; fillStatus(); fillSettings(); });
+  }
+
+  function ago(t) {
+    if (!t) return "";
+    var m = Math.round((Date.now() - t) / 60000);
+    if (m < 1) return "just now"; if (m < 60) return m + " min ago";
+    var h = Math.round(m / 60); if (h < 48) return h + " hr ago";
+    return Math.round(h / 24) + " days ago";
+  }
+  function fillStatus() {
+    var s = state;
+    $("nowMenu").textContent = s.menu ? (s.menu.title || "Uploaded") + " · " + ago(s.menuUpdated) : "Not uploaded";
+    $("nowSlide").textContent = s.slide ? "Updated " + ago(s.slide.updated) : "Not uploaded";
+    $("nowCal").textContent = s.settings.calendar ? "Connected (" + s.settings.calendarMode.toLowerCase() + " view)" : "Not set";
+    $("nowRot").textContent = s.settings.screens.filter(function (x) { return x.enabled; }).map(function (x) { return x.id + " " + x.seconds + "s"; }).join(" → ") || "Nothing on";
+  }
+
+  // ---------- image helpers ----------
+  function loadImage(file) {
+    return new Promise(function (res, rej) {
+      var url = URL.createObjectURL(file), img = new Image();
+      img.onload = function () { res(img); }; img.onerror = function () { rej(new Error("Couldn't open that image")); };
+      img.src = url;
+    });
+  }
+  function resize(img, maxW, maxH, quality) {
+    var s = Math.min(1, maxW / img.naturalWidth, maxH / img.naturalHeight);
+    var c = document.createElement("canvas");
+    c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
+    var g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
+    g.drawImage(img, 0, 0, c.width, c.height);
+    return new Promise(function (res) { c.toBlob(function (b) { res({ blob: b, dataUrl: c.toDataURL("image/jpeg", quality) }); }, "image/jpeg", quality); });
+  }
+  function fitPreview(box) {
+    var inner = box.querySelector(".inner");
+    if (inner) inner.style.transform = "scale(" + box.clientWidth / 1920 + ")";
+  }
+  window.addEventListener("resize", function () { var p = document.querySelectorAll(".preview"); for (var i = 0; i < p.length; i++) fitPreview(p[i]); });
+
+  // ---------- menu ----------
+  $("menuFile").onchange = function () {
+    var f = this.files[0]; if (!f) return;
+    $("menuWork").classList.add("hidden");
+    msg("menuMsg", '<span class="spin"></span>Gemini is reading the menu… (10–30 sec)', "info");
+    loadImage(f).then(function (img) { return resize(img, 2000, 2000, 0.9); }).then(function (r) {
+      return api("POST", "/api/menu/extract", { image: r.dataUrl.split(",")[1], mimeType: "image/jpeg" });
+    }).then(function (j) {
+      draftMenu = j.menu;
+      msg("menuMsg", "Read it! Check the preview below, fix anything that's off, then put it on the TV.", "ok");
+      $("menuWork").classList.remove("hidden");
+      renderPreview(); buildEditor();
+    }).catch(function (e) {
+      if (e.status === 401) return showLogin();
+      msg("menuMsg", e.message, "err");
+    });
+    this.value = "";
+  };
+  function renderPreview() {
+    var box = $("menuPreview");
+    MenuRender.render(box, draftMenu, { clock: false, timezone: state && state.settings.timezone });
+    fitPreview(box.parentNode);
+  }
+  function field(label, val, on, area) {
+    var w = document.createElement("div");
+    w.innerHTML = '<label class="f"></label>' + (area ? "<textarea></textarea>" : '<input type="text">');
+    w.querySelector("label").textContent = label;
+    var inp = w.querySelector(area ? "textarea" : "input"); inp.value = val;
+    inp.oninput = function () { on(inp.value); renderPreview(); };
+    return w;
+  }
+  function buildEditor() {
+    var ed = $("menuEdit"); ed.innerHTML = ""; var m = draftMenu;
+    var top = document.createElement("div"); top.className = "two";
+    top.appendChild(field("Week title", m.title, function (v) { m.title = v; }));
+    top.appendChild(field("Chef", m.chef, function (v) { m.chef = v; }));
+    ed.appendChild(top);
+    m.days.forEach(function (d) {
+      var box = document.createElement("div"); box.className = "day";
+      box.innerHTML = "<h3></h3>"; box.querySelector("h3").textContent = d.day + " " + d.date;
+      ["lunch", "dinner"].forEach(function (k) {
+        box.appendChild(field(k === "lunch" ? "Lunch" : "Dinner", d[k].title, function (v) { d[k].title = v; }));
+        box.appendChild(field("…details (one per line)", d[k].items.join("\n"), function (v) {
+          d[k].items = v.split("\n").map(function (x) { return x.trim(); }).filter(Boolean);
+        }, true));
+      });
+      ed.appendChild(box);
+    });
+  }
+  $("menuPublish").onclick = function () {
+    var b = this; b.disabled = true;
+    api("POST", "/api/menu", { menu: draftMenu }).then(function (j) {
+      state = j.state; fillStatus();
+      msg("menuMsg", "✅ Menu is live. The TV picks it up within a minute.", "ok");
+      $("menuWork").classList.add("hidden");
+    }).catch(function (e) { if (e.status === 401) return showLogin(); msg("menuMsg", e.message, "err"); })
+      .then(function () { b.disabled = false; });
+  };
+
+  // ---------- slide ----------
+  $("slideFile").onchange = function () {
+    var f = this.files[0]; if (!f) return;
+    clearMsg("slideMsg");
+    loadImage(f).then(function (img) { return resize(img, 1920, 1080, 0.92); }).then(function (r) {
+      slideBlob = r.blob; $("slidePreview").src = r.dataUrl; $("slideWork").classList.remove("hidden");
+    }).catch(function (e) { msg("slideMsg", e.message, "err"); });
+    this.value = "";
+  };
+  $("slidePublish").onclick = function () {
+    var b = this; b.disabled = true;
+    msg("slideMsg", '<span class="spin"></span>Uploading…', "info");
+    api("PUT", "/api/slide", slideBlob, "image/jpeg").then(function (j) {
+      state = j.state; fillStatus();
+      msg("slideMsg", "✅ Slide is live. The TV picks it up within a minute.", "ok");
+      $("slideWork").classList.add("hidden");
+    }).catch(function (e) { if (e.status === 401) return showLogin(); msg("slideMsg", e.message, "err"); })
+      .then(function () { b.disabled = false; });
+  };
+
+  // ---------- settings ----------
+  var screens = [];
+  function fillSettings() {
+    var s = state.settings;
+    $("calInput").value = s.calendar || "";
+    $("calMode").value = s.calendarMode || "WEEK";
+    var z = String(s.calendarZoom || 1.35); $("calZoom").value = ["1", "1.2", "1.35", "1.5"].indexOf(z) >= 0 ? z : "1.35";
+    $("tz").value = s.timezone || "";
+    $("model").value = state.geminiModel || "";
+    screens = s.screens.map(function (x) { return { id: x.id, enabled: x.enabled, seconds: x.seconds }; });
+    ["menu", "slide", "calendar"].forEach(function (id) {
+      if (!screens.some(function (x) { return x.id === id; })) screens.push({ id: id, enabled: false, seconds: 15 });
+    });
+    drawScreens();
+  }
+  function drawScreens() {
+    var box = $("screens"); box.innerHTML = "";
+    screens.forEach(function (sc, i) {
+      var r = document.createElement("div"); r.className = "scr";
+      r.innerHTML = '<input type="checkbox"><span class="nm"></span><input type="number" min="5" max="600"><span style="color:#6b6f86;font-size:13px">sec</span>' +
+        '<button class="mv" data-d="-1">↑</button><button class="mv" data-d="1">↓</button>';
+      r.querySelector(".nm").textContent = NAMES[sc.id];
+      var cb = r.querySelector("input[type=checkbox]"); cb.checked = sc.enabled; cb.onchange = function () { sc.enabled = cb.checked; };
+      var n = r.querySelector("input[type=number]"); n.value = sc.seconds; n.oninput = function () { sc.seconds = Number(n.value) || 15; };
+      Array.prototype.forEach.call(r.querySelectorAll(".mv"), function (b) {
+        b.onclick = function () {
+          var j = i + Number(b.getAttribute("data-d")); if (j < 0 || j >= screens.length) return;
+          var t = screens[i]; screens[i] = screens[j]; screens[j] = t; drawScreens();
+        };
+      });
+      box.appendChild(r);
+    });
+  }
+  $("saveSettings").onclick = function () {
+    var b = this; b.disabled = true;
+    api("POST", "/api/settings", {
+      calendar: $("calInput").value, calendarMode: $("calMode").value, calendarZoom: Number($("calZoom").value),
+      timezone: $("tz").value || "America/New_York", geminiModel: $("model").value, screens: screens,
+    }).then(function (j) {
+      state = j.state; fillStatus(); fillSettings();
+      msg("setMsg", "✅ Saved. The TV updates within a minute.", "ok");
+    }).catch(function (e) { if (e.status === 401) return showLogin(); msg("setMsg", e.message, "err"); })
+      .then(function () { b.disabled = false; });
+  };
+
+  // ---------- boot ----------
+  if (!pw) showLogin();
+  else api("POST", "/api/login").then(start).catch(function (e) { if (e.status === 401) showLogin(); else { start(); } });
+})();
+</script>
+</body>
+</html>

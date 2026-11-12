@@ -1,0 +1,35 @@
+plugins { id "com.android.application" }
+
+// The TV page URL is baked in at build time (GitHub Action input), e.g.
+//   gradle assembleRelease -PtvUrl=https://frat-tv.yourname.workers.dev/tv
+// It can also be changed on the TV later by pressing the remote's Menu (≡) button.
+def tvUrl = project.findProperty("tvUrl") ?: ""
+
+android {
+    namespace "com.frattv.kiosk"
+    compileSdk 34
+    defaultConfig {
+        applicationId "com.frattv.kiosk"
+        minSdk 22
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+        buildConfigField "String", "TV_URL", "\"${tvUrl}\""
+    }
+    buildFeatures { buildConfig true }
+    buildTypes {
+        release {
+            minifyEnabled false
+            // signed with the debug key so it installs on the Fire Stick without extra setup
+            signingConfig signingConfigs.debug
+        }
+    }
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
