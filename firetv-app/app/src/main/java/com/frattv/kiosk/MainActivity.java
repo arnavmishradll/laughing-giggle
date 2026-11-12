@@ -27,6 +27,9 @@ import android.widget.FrameLayout;
  * Remote: Menu (≡) = change the page address, Back = ignored (so nobody exits by accident).
  */
 public class MainActivity extends Activity {
+    /** true while House TV is the app on screen (the background service checks this) */
+    public static volatile boolean isOnScreen = false;
+
     private static final long RETRY_MS = 15_000;              // retry after a network error
     private static final long DAILY_RELOAD_MS = 12L * 3600_000; // fresh start twice a day
 
@@ -54,6 +57,7 @@ public class MainActivity extends Activity {
         if (getUrl().isEmpty()) askForUrl();
         else loadPage();
         handler.postDelayed(periodic, DAILY_RELOAD_MS);
+        KioskService.start(this);
     }
 
     private void createWebView() {
@@ -144,7 +148,7 @@ public class MainActivity extends Activity {
             | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
     }
 
-    @Override protected void onResume() { super.onResume(); web.onResume(); }
-    @Override protected void onPause() { web.onPause(); super.onPause(); }
+    @Override protected void onResume() { super.onResume(); isOnScreen = true; web.onResume(); hideSystemUi(); }
+    @Override protected void onPause() { isOnScreen = false; web.onPause(); super.onPause(); }
     @Override protected void onDestroy() { handler.removeCallbacksAndMessages(null); web.destroy(); super.onDestroy(); }
 }
