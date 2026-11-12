@@ -8,6 +8,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.PowerManager;
 import android.text.InputType;
 import android.view.KeyEvent;
 import android.view.View;
@@ -37,6 +38,7 @@ public class MainActivity extends Activity {
     private FrameLayout root;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private SharedPreferences prefs;
+    private PowerManager.WakeLock screenLock;
 
     private final Runnable retry = new Runnable() { public void run() { loadPage(); } };
     private final Runnable periodic = new Runnable() {
@@ -148,7 +150,23 @@ public class MainActivity extends Activity {
             | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
     }
 
-    @Override protected void onResume() { super.onResume(); isOnScreen = true; web.onResume(); hideSystemUi(); }
-    @Override protected void onPause() { isOnScreen = false; web.onPause(); super.onPause(); }
+    @SuppressWarnings("deprecation")
+    @Override protected void onResume() {
+        super.onResume(); isOnScreen = true; web.onResume(); hideSystemUi();
+        // second layer on top of FLAG_KEEP_SCREEN_ON: ask the system to keep the screen awake
+        try {
+            if (screenLock == null) {
+                PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+                screenLock = pm.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK, "frattv:screen");
+                screenLock.setReferenceCounted(false);
+            }
+            screenLock.acquire();
+        } catch (Exception ignored) { }
+    }
+    @Override protected void onPause() {
+        isOnScreen = false; web.onPause();
+        try { if (screenLock != null && screenLock.isHeld()) screenLock.release(); } catch (Exception ignored) { }
+        super.onPause();
+    }
     @Override protected void onDestroy() { handler.removeCallbacksAndMessages(null); web.destroy(); super.onDestroy(); }
 }

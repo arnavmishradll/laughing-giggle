@@ -2,7 +2,10 @@ package com.frattv.kiosk;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
+import android.app.AlarmManager;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.os.PowerManager;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -21,6 +24,7 @@ public class KioskService extends Service {
     private static final String CHANNEL = "kiosk";
     private final Handler handler = new Handler(Looper.getMainLooper());
     private BroadcastReceiver wakeReceiver;
+    private static final long CHECK_MS = 3 * 60 * 1000; // check every 3 minutes
 
     public static void start(Context c) {
         Intent i = new Intent(c, KioskService.class);
@@ -46,6 +50,8 @@ public class KioskService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null && intent.getBooleanExtra("boot", false)) bringBackSoon();
+        if (intent != null && "check".equals(intent.getAction())) wakeIfAsleep();
+        scheduleCheck();
         return START_STICKY;
     }
 
@@ -60,6 +66,32 @@ public class KioskService extends Service {
         Intent i = new Intent(this, MainActivity.class);
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
         try { startActivity(i); } catch (Exception ignored) { }
+    }
+
+    /** If Fire TV put itself to sleep, turn the screen back on (this also triggers bringBackSoon via SCREEN_ON). */
+    @SuppressWarnings("deprecation")
+    private void wakeIfAsleep() {
+        PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+        if (pm == null || pm.isInteractive()) return;
+        try {
+            PowerManager.WakeLock wl = pm.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK
+                | PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.ON_AFTER_RELEASE, "frattv:wake");
+            wl.acquire(15000);
+        } catch (Exception ignored) { }
+        bringBackSoon();
+    }
+
+    /** Alarm that fires even while the stick is asleep. */
+    private void scheduleCheck() {
+        AlarmManager am = (AlarmManager) getSystemService(ALARM_SERVICE);
+        if (am == null) return;
+        Intent i = new Intent(this, KioskService.class).setAction("check");
+        PendingIntent pi;
+        if (Build.VERSION.SDK_INT >= 26) pi = PendingIntent.getForegroundService(this, 7, i, PendingIntent.FLAG_UPDATE_CURRENT);
+        else pi = PendingIntent.getService(this, 7, i, PendingIntent.FLAG_UPDATE_CURRENT);
+        long at = System.currentTimeMillis() + CHECK_MS;
+        if (Build.VERSION.SDK_INT >= 23) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi);
+        else am.setExact(AlarmManager.RTC_WAKEUP, at, pi);
     }
 
     private void goForeground() {

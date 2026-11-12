@@ -12,8 +12,8 @@ android {
         applicationId "com.frattv.kiosk"
         minSdk 22
         targetSdk 28  // Fire OS is Android 9/11; 28 keeps auto-start-after-wake allowed
-        versionCode 2
-        versionName "1.1"
+        versionCode 3
+        versionName "1.2"
         buildConfigField "String", "TV_URL", "\"${tvUrl}\""
     }
     buildFeatures { buildConfig true }
