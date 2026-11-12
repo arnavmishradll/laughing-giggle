@@ -59,7 +59,7 @@
   var POLL_MS = 60 * 1000;            // check for new uploads every minute
   var HARD_RELOAD_MS = 6 * 3600 * 1000; // full page refresh every 6 hours
   var stage = document.getElementById("stage");
-  var state = null, order = [], idx = -1, timer = null, calKey = "", started = false, calLoadedAt = 0;
+  var state = null, order = [], idx = -1, timer = null, calKey = "", started = false, calLoadedAt = 0, menuKey = "", curId = "";
   var CAL_REFRESH_MS = 3 * 60 * 1000; // reload the calendar at most every 3 minutes, while it is off screen
 
   // Fit the 1920x1080 design to whatever size the TV browser reports.
@@ -119,9 +119,23 @@
     body.innerHTML = '<iframe scrolling="no" style="width:' + (w / z) + "px;height:" + (h / z) + "px;transform:scale(" + z + ')" src="' + src + '"></iframe>';
   }
 
+  // Re-draw the menu only when something actually changed (new upload or a new day),
+  // and only while it's off screen, so it never blanks out mid-display.
+  function dayKey() {
+    try { return new Date().toLocaleDateString("en-US", { timeZone: tz() }); } catch (e) { return new Date().toDateString(); }
+  }
+  function ensureMenu(allowVisible) {
+    if (!state || !state.menu) return;
+    var k = (state.menuUpdated || "") + "|" + dayKey();
+    if (k === menuKey) return;
+    if (curId === "menu" && !allowVisible) return; // wait until it's off screen
+    menuKey = k;
+    MenuRender.render(document.getElementById("s-menu"), state.menu, { clock: true, timezone: tz() });
+  }
+
   function render() {
     var s = state;
-    if (s.menu) MenuRender.render(document.getElementById("s-menu"), s.menu, { clock: true, timezone: tz() });
+    ensureMenu(false);
     if (s.slide) {
       var img = document.getElementById("slideImg");
       if (img.getAttribute("src") !== s.slide.url) img.src = s.slide.url;
@@ -137,6 +151,7 @@
   }
 
   function show(id) {
+    curId = id;
     var all = document.querySelectorAll(".screen");
     for (var i = 0; i < all.length; i++) all[i].classList.toggle("on", all[i].id === "s-" + id);
   }
@@ -146,7 +161,10 @@
     if (!order.length) { show("empty"); bar(0); timer = setTimeout(next, 10000); return; }
     idx = (idx + 1) % order.length;
     var sc = order[idx];
+    if (sc.id === "menu") ensureMenu(true); // still hidden at this point
     show(sc.id);
+    var after = order[(idx + 1) % order.length];
+    if (after && after.id === "menu" && sc.id !== "menu") setTimeout(function () { ensureMenu(false); }, 1500);
     // refresh the calendar in the background when the screen *before* it comes up, so it's fresh and already loaded
     var upcoming = order[(idx + 1) % order.length];
     if (upcoming && upcoming.id === "calendar" && sc.id !== "calendar" && Date.now() - calLoadedAt > CAL_REFRESH_MS) {
@@ -154,7 +172,6 @@
     } else if (order.length === 1 && sc.id === "calendar" && Date.now() - calLoadedAt > CAL_REFRESH_MS) {
       buildCalendar(true); // calendar is the only screen: refresh it in place
     }
-    if (sc.id === "menu") MenuRender.fit(document.getElementById("s-menu"));
     bar(sc.seconds);
     timer = setTimeout(next, sc.seconds * 1000);
   }
@@ -210,7 +227,8 @@
   setInterval(function () { poll(false); }, POLL_MS);
   setTimeout(function () { location.reload(); }, HARD_RELOAD_MS);
   // midnight: re-render so the "TODAY" highlight moves
-  setInterval(function () { if (state && state.menu) MenuRender.render(document.getElementById("s-menu"), state.menu, { clock: true, timezone: tz() }); }, 30 * 60 * 1000);
+  // if the menu is the only screen, it has to update in place (e.g. at midnight)
+  setInterval(function () { if (order.length <= 1) ensureMenu(true); }, 60 * 1000);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { MenuRender.fit(document.getElementById("s-menu")); });
 })();
 </script>

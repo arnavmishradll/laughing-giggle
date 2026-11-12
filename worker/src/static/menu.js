@@ -74,30 +74,35 @@
 
   // shrink text so every cell fits, then use one shared size so the grid looks even
   function overflows(c) { return c.scrollHeight > c.clientHeight + 1 || c.scrollWidth > c.clientWidth + 1; }
+  // Find the largest size where test(size) passes, using a few binary-search steps (fast on slow TV sticks)
+  function largest(lo, hi, test) {
+    if (!test(lo)) return lo;
+    while (lo < hi) { var mid = Math.ceil((lo + hi) / 2); if (test(mid)) lo = mid; else hi = mid - 1; }
+    return lo;
+  }
   function fit(el) {
     var cells = el.querySelectorAll(".mn-cell"), i;
     if (!cells.length) return;
+    var titles = [], details = [];
+    for (i = 0; i < cells.length; i++) { titles.push(cells[i].querySelector(".t")); details.push(cells[i].querySelector(".i")); }
     // 1) one shared title size: as big as possible while every title fits nicely
-    var T = 56, ok = false;
-    while (!ok && T > 22) {
-      ok = true;
-      for (i = 0; i < cells.length; i++) {
-        var t = cells[i].querySelector(".t");
-        t.style.fontSize = T + "px";
-        if (t.scrollWidth > cells[i].clientWidth - 30 || t.offsetHeight > cells[i].clientHeight * 0.42) ok = false;
+    var T = largest(22, 56, function (sz) {
+      var j;
+      for (j = 0; j < cells.length; j++) titles[j].style.fontSize = sz + "px";
+      for (j = 0; j < cells.length; j++) {
+        if (titles[j].scrollWidth > cells[j].clientWidth - 30 || titles[j].offsetHeight > cells[j].clientHeight * 0.42) return false;
       }
-      if (!ok) T -= 2;
-    }
+      return true;
+    });
+    for (i = 0; i < cells.length; i++) titles[i].style.fontSize = T + "px";
     // 2) one shared detail size: largest that fits in every cell
-    var I = Math.round(T * 0.7), min = I;
-    for (i = 0; i < cells.length; i++) {
-      var c = cells[i], d = c.querySelector(".i"), size = I;
-      if (!d) continue;
-      d.style.fontSize = size + "px";
-      while (overflows(c) && size > 14) { size -= 1; d.style.fontSize = size + "px"; }
-      if (size < min) min = size;
-    }
-    for (i = 0; i < cells.length; i++) { var dd = cells[i].querySelector(".i"); if (dd) dd.style.fontSize = min + "px"; }
+    var I = largest(14, Math.round(T * 0.7), function (sz) {
+      var j;
+      for (j = 0; j < cells.length; j++) if (details[j]) details[j].style.fontSize = sz + "px";
+      for (j = 0; j < cells.length; j++) if (details[j] && overflows(cells[j])) return false;
+      return true;
+    });
+    for (i = 0; i < cells.length; i++) if (details[i]) details[i].style.fontSize = I + "px";
     var notes = el.querySelector(".mn-notes");
     if (notes) {
       var ns = 23; notes.style.fontSize = ns + "px";
