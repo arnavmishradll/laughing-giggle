@@ -59,7 +59,8 @@
   var POLL_MS = 60 * 1000;            // check for new uploads every minute
   var HARD_RELOAD_MS = 6 * 3600 * 1000; // full page refresh every 6 hours
   var stage = document.getElementById("stage");
-  var state = null, order = [], idx = -1, timer = null, calKey = "", started = false;
+  var state = null, order = [], idx = -1, timer = null, calKey = "", started = false, calLoadedAt = 0;
+  var CAL_REFRESH_MS = 3 * 60 * 1000; // reload the calendar at most every 3 minutes, while it is off screen
 
   // Fit the 1920x1080 design to whatever size the TV browser reports.
   // Fire TV's WebView can report its size late or oddly, so measure several ways and re-check often.
@@ -103,11 +104,12 @@
     return id.trim();
   }
 
-  function buildCalendar() {
+  function buildCalendar(force) {
     var st = state.settings, id = calendarSrc(st.calendar);
     var key = id + "|" + st.calendarMode + "|" + st.calendarZoom + "|" + tz();
-    if (key === calKey) return;
+    if (key === calKey && !force) return;
     calKey = key;
+    calLoadedAt = Date.now();
     var body = document.getElementById("calBody");
     if (!id) { body.innerHTML = ""; return; }
     var z = st.calendarZoom || 1.35, w = body.clientWidth, h = body.clientHeight;
@@ -145,6 +147,13 @@
     idx = (idx + 1) % order.length;
     var sc = order[idx];
     show(sc.id);
+    // refresh the calendar in the background when the screen *before* it comes up, so it's fresh and already loaded
+    var upcoming = order[(idx + 1) % order.length];
+    if (upcoming && upcoming.id === "calendar" && sc.id !== "calendar" && Date.now() - calLoadedAt > CAL_REFRESH_MS) {
+      setTimeout(function () { buildCalendar(true); }, 1500);
+    } else if (order.length === 1 && sc.id === "calendar" && Date.now() - calLoadedAt > CAL_REFRESH_MS) {
+      buildCalendar(true); // calendar is the only screen: refresh it in place
+    }
     if (sc.id === "menu") MenuRender.fit(document.getElementById("s-menu"));
     bar(sc.seconds);
     timer = setTimeout(next, sc.seconds * 1000);
