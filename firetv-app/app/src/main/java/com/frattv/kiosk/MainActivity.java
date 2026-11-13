@@ -119,7 +119,7 @@ public class MainActivity extends Activity {
         input.setText(cur.isEmpty() ? "https://" : cur);
         input.setSelection(input.getText().length());
         new AlertDialog.Builder(this)
-            .setTitle("House TV page address")
+            .setTitle("House TV page address  (app v" + BuildConfig.VERSION_NAME + ")")
             .setMessage("Example: https://frat-tv.yourname.workers.dev/tv")
             .setView(input)
             .setPositiveButton("Save", (d, w) -> {
