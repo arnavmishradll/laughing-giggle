@@ -35,7 +35,7 @@ jobs:
             # find the namespace made earlier with "wrangler kv namespace create TV"
             KV_ID=$(npx wrangler kv namespace list | node -e '
               let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{
-                const list=JSON.parse(s.slice(s.indexOf("[")));
+                const i=s.search(/\[\s*[\{\]]/);const list=JSON.parse(s.slice(i));
                 const hit=list.find(n=>n.title==="frat-tv-TV")||list.find(n=>n.title==="TV")||list.find(n=>/TV$/.test(n.title));
                 if(!hit){console.error("No KV namespace ending in TV found: "+list.map(n=>n.title).join(", "));process.exit(1)}
                 process.stdout.write(hit.id);
