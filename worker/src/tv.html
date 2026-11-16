@@ -104,8 +104,16 @@
     return id.trim();
   }
 
+  // Several calendars: one per line (or separated by commas). Each gets its own color.
+  var CAL_COLORS = ["#F4511E", "#E67C73", "#F6BF26", "#8E24AA", "#795548", "#33B679", "#039BE5", "#3F51B5", "#0B8043", "#D50000"];
+  function calendarIds(raw) {
+    var parts = String(raw || "").split(/[\n,]+/), out = [];
+    for (var i = 0; i < parts.length; i++) { var id = calendarSrc(parts[i]); if (id && out.indexOf(id) < 0) out.push(id); }
+    return out;
+  }
+
   function buildCalendar(force) {
-    var st = state.settings, id = calendarSrc(st.calendar);
+    var st = state.settings, ids = calendarIds(st.calendar), id = ids.join(",");
     var key = id + "|" + st.calendarMode + "|" + st.calendarZoom + "|" + tz();
     if (key === calKey && !force) return;
     calKey = key;
@@ -113,7 +121,9 @@
     var body = document.getElementById("calBody");
     if (!id) { body.innerHTML = ""; return; }
     var z = st.calendarZoom || 1.35, w = body.clientWidth, h = body.clientHeight;
-    var src = "https://calendar.google.com/calendar/embed?src=" + encodeURIComponent(id) +
+    var srcs = "";
+    for (var i = 0; i < ids.length; i++) srcs += "&src=" + encodeURIComponent(ids[i]) + "&color=" + encodeURIComponent(CAL_COLORS[i % CAL_COLORS.length]);
+    var src = "https://calendar.google.com/calendar/embed?" + srcs.slice(1) +
       "&ctz=" + encodeURIComponent(tz()) + "&mode=" + (st.calendarMode || "WEEK") +
       "&showTitle=0&showPrint=0&showTabs=0&showCalendars=0&showTz=0&showNav=0&showDate=1&wkst=1&bgcolor=%23ffffff";
     body.innerHTML = '<iframe scrolling="no" style="width:' + (w / z) + "px;height:" + (h / z) + "px;transform:scale(" + z + ')" src="' + src + '"></iframe>';
@@ -145,7 +155,7 @@
       if (!x.enabled) return false;
       if (x.id === "menu") return !!s.menu;
       if (x.id === "slide") return !!s.slide;
-      if (x.id === "calendar") return !!calendarSrc(s.settings.calendar);
+      if (x.id === "calendar") return calendarIds(s.settings.calendar).length > 0;
       return false;
     });
   }

@@ -126,7 +126,7 @@ async function saveSettings(request, env) {
   const body = await request.json();
   const s = await getState(env);
   const next = Object.assign({}, s.settings);
-  if (typeof body.calendar === "string") next.calendar = calendarId(body.calendar);
+  if (typeof body.calendar === "string") next.calendar = body.calendar.split(/[\n,]+/).map(calendarId).filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join("\n");
   if (["WEEK", "MONTH", "AGENDA"].includes(body.calendarMode)) next.calendarMode = body.calendarMode;
   if (typeof body.calendarZoom === "number" && body.calendarZoom >= 0.5 && body.calendarZoom <= 3) next.calendarZoom = body.calendarZoom;
   if (typeof body.timezone === "string" && body.timezone) next.timezone = body.timezone.trim();
