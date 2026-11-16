@@ -27,7 +27,55 @@
   .cal-head .clk { margin-left: auto; font-size: 40px; font-weight: 500; }
   .cal-head .clk b { color: #ea6a22; font-weight: 600; }
   .cal-body { position: absolute; left: 50px; right: 50px; top: 156px; bottom: 40px; background: #fff; border: 4px solid #ea6a22; border-radius: 10px; overflow: hidden; }
-  .cal-body iframe { border: 0; transform-origin: 0 0; background: #fff; }
+  .cal-head .ttl small { font-family: "Oswald", sans-serif; font-weight: 500; font-size: 34px; letter-spacing: 3px; color: #c9cde6; margin-left: 18px; }
+  .cal-body { display: flex; flex-direction: column; }
+  .ce { font-family: "Barlow Condensed", sans-serif; font-weight: 500; color: #14205c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 8px; }
+  .ce b { font-weight: 600; }
+  .ce .tx { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .ce i { flex: none; width: 12px; height: 12px; border-radius: 50%; }
+  .ce-all { color: #fff; border-radius: 6px; padding: 2px 10px; font-weight: 600; display: block; }
+  .ce-more { color: #6b6f86; font-style: italic; }
+  .c-legend { flex: none; height: 52px; border-top: 2px solid #f0e6da; display: flex; align-items: center; justify-content: center; gap: 30px; font: 500 24px "Barlow Condensed", sans-serif; color: #14205c; overflow: hidden; white-space: nowrap; }
+  .c-legend span { display: inline-flex; align-items: center; gap: 8px; }
+  .c-legend i { width: 16px; height: 16px; border-radius: 4px; }
+  .c-empty, .c-msg { flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; font: 500 40px "Oswald", sans-serif; color: #6b6f86; padding: 40px; }
+  /* week */
+  .cw { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); }
+  .cw-col { display: flex; flex-direction: column; border-left: 2px solid #f0e6da; min-height: 0; }
+  .cw-col:first-child { border-left: 0; }
+  .cw-h { flex: none; height: 84px; background: #14205c; color: #fff; display: flex; align-items: center; justify-content: center; gap: 10px; font: 600 38px "Oswald", sans-serif; }
+  .cw-h .dt { color: #ea6a22; font-weight: 500; }
+  .cw-h .tag { font-size: 18px; letter-spacing: 2px; background: #14205c; color: #fff; padding: 1px 8px; border-radius: 4px; }
+  .cw-col.today { background: #fdeee3; }
+  .cw-col.today .cw-h { background: #ea6a22; }
+  .cw-col.today .cw-h .dt { color: #14205c; }
+  .cw-ev { flex: 1; min-height: 0; overflow: hidden; padding: 14px 12px; display: flex; flex-direction: column; gap: 12px; }
+  .cw-ev .ce { font-size: 30px; white-space: normal; align-items: flex-start; line-height: 1.15; }
+  .cw-ev .ce b { display: block; color: #ea6a22; }
+  .cw-ev .ce i { margin-top: 10px; }
+  .cw-ev .ce-all { font-size: 28px; }
+  .cw-none { color: #c4c0b8; font: 500 34px "Oswald", sans-serif; text-align: center; margin-top: 20px; }
+  /* month */
+  .cm { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); }
+  .cm-wd { background: #14205c; color: #fff; display: flex; align-items: center; justify-content: center; font: 600 28px "Oswald", sans-serif; letter-spacing: 2px; }
+  .cm-cell { border-left: 1px solid #ece4d8; border-top: 1px solid #ece4d8; padding: 4px 6px; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .cm-cell.out { background: #f7f4ef; }
+  .cm-cell.out .cm-n { color: #b9b6c4; }
+  .cm-n { font: 500 24px "Oswald", sans-serif; color: #14205c; text-align: center; height: 34px; flex: none; }
+  .cm-n span { display: inline-block; min-width: 34px; height: 34px; line-height: 34px; border-radius: 17px; }
+  .cm-cell.today { background: #fdeee3; }
+  .cm-cell.today .cm-n span { background: #ea6a22; color: #fff; }
+  .cm-ev { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 3px; }
+  .cm-ev .ce { font-size: 21px; }
+  .cm-ev .ce i { width: 9px; height: 9px; }
+  .cm-ev .ce-all { font-size: 20px; padding: 0 6px; border-radius: 4px; }
+  /* agenda */
+  .ca { flex: 1; min-height: 0; column-count: 2; column-gap: 50px; padding: 26px 40px; overflow: hidden; column-fill: auto; }
+  .ca-day { break-inside: avoid; margin-bottom: 22px; }
+  .ca-h { font: 600 32px "Oswald", sans-serif; color: #ea6a22; border-bottom: 2px solid #f0e6da; margin-bottom: 8px; letter-spacing: 1px; }
+  .ca-day.today .ca-h { color: #14205c; }
+  .ca .ce { font-size: 32px; margin: 4px 0; }
+  .ca .ce-all { display: inline-block; }
 
   /* empty state */
   #s-empty { background: #14205c; color: #fff; font-family: "Oswald", sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
@@ -45,7 +93,7 @@
   <div class="screen" id="s-menu"></div>
   <div class="screen" id="s-slide"><img id="slideImg" alt=""></div>
   <div class="screen" id="s-calendar">
-    <div class="cal-head"><div class="cal-letters">&Sigma;&Nu;</div><div class="ttl">CHAPTER <span>CALENDAR</span></div><div class="clk" id="calClock"></div></div>
+    <div class="cal-head"><div class="cal-letters">&Sigma;&Nu;</div><div class="ttl">CHAPTER <span>CALENDAR</span><small id="calRange"></small></div><div class="clk" id="calClock"></div></div>
     <div class="cal-body" id="calBody"></div>
   </div>
   <div class="screen" id="s-empty"><div class="big">&Sigma;&Nu;</div><p>Nothing uploaded yet.</p><p>Go to <code id="adminUrl"></code> on your phone.</p></div>
@@ -54,6 +102,7 @@
 </div>
 </div>
 <script src="/static/menu.js"></script>
+<script src="/static/cal.js"></script>
 <script>
 (function () {
   var POLL_MS = 60 * 1000;            // check for new uploads every minute
@@ -88,45 +137,25 @@
 
   function tz() { return (state && state.settings && state.settings.timezone) || "America/New_York"; }
 
-  function calendarSrc(raw) {
-    raw = String(raw || "").trim().replace(/^["']|["']$/g, "");
-    if (!raw) return "";
-    var id = raw, m;
-    try {
-      if ((m = raw.match(/[?&]cid=([^&"'\s]+)/))) {
-        var b = decodeURIComponent(m[1]).replace(/-/g, "+").replace(/_/g, "/");
-        while (b.length % 4) b += "=";
-        id = atob(b);
-      } else if ((m = raw.match(/[?&]src=([^&"'\s]+)/))) id = decodeURIComponent(m[1]);
-      else if ((m = raw.match(/calendar\/ical\/([^/"'\s]+)/))) id = decodeURIComponent(m[1]);
-      else id = decodeURIComponent(raw);
-    } catch (e) {}
-    return id.trim();
-  }
-
-  // Several calendars: one per line (or separated by commas). Each gets its own color.
-  var CAL_COLORS = ["#F4511E", "#E67C73", "#F6BF26", "#8E24AA", "#795548", "#33B679", "#039BE5", "#3F51B5", "#0B8043", "#D50000"];
-  function calendarIds(raw) {
-    var parts = String(raw || "").split(/[\n,]+/), out = [];
-    for (var i = 0; i < parts.length; i++) { var id = calendarSrc(parts[i]); if (id && out.indexOf(id) < 0) out.push(id); }
-    return out;
-  }
-
+  var calLoading = false;
   function buildCalendar(force) {
-    var st = state.settings, ids = calendarIds(st.calendar), id = ids.join(",");
-    var key = id + "|" + st.calendarMode + "|" + st.calendarZoom + "|" + tz();
-    if (key === calKey && !force) return;
+    var st = state.settings, n = st.calendarCount || 0;
+    var key = (st.calendarHash || "") + "|" + n + "|" + st.calendarMode + "|" + tz();
+    if ((key === calKey && !force) || calLoading) return;
     calKey = key;
     calLoadedAt = Date.now();
     var body = document.getElementById("calBody");
-    if (!id) { body.innerHTML = ""; return; }
-    var z = st.calendarZoom || 1.35, w = body.clientWidth, h = body.clientHeight;
-    var srcs = "";
-    for (var i = 0; i < ids.length; i++) srcs += "&src=" + encodeURIComponent(ids[i]) + "&color=" + encodeURIComponent(CAL_COLORS[i % CAL_COLORS.length]);
-    var src = "https://calendar.google.com/calendar/embed?" + srcs.slice(1) +
-      "&ctz=" + encodeURIComponent(tz()) + "&mode=" + (st.calendarMode || "WEEK") +
-      "&showTitle=0&showPrint=0&showTabs=0&showCalendars=0&showTz=0&showNav=0&showDate=1&wkst=1&bgcolor=%23ffffff";
-    body.innerHTML = '<iframe scrolling="no" style="width:' + (w / z) + "px;height:" + (h / z) + "px;transform:scale(" + z + ')" src="' + src + '"></iframe>';
+    if (!n) { body.innerHTML = ""; return; }
+    calLoading = true;
+    CalFeed.load(n, tz(), function (data) {
+      calLoading = false;
+      var okCount = data.sources.filter(function (x) { return x.ok; }).length;
+      if (!okCount) {
+        body.innerHTML = '<div class="c-msg">Can\'t read any of the calendars yet.<br>Open ' + location.host + '/admin to see which ones need to be made public.</div>';
+        return;
+      }
+      CalFeed.render(body, data, { mode: st.calendarMode, timezone: tz(), setRange: function (t) { document.getElementById("calRange").textContent = t; } });
+    });
   }
 
   // Re-draw the menu only when something actually changed (new upload or a new day),
@@ -155,7 +184,7 @@
       if (!x.enabled) return false;
       if (x.id === "menu") return !!s.menu;
       if (x.id === "slide") return !!s.slide;
-      if (x.id === "calendar") return calendarIds(s.settings.calendar).length > 0;
+      if (x.id === "calendar") return (s.settings.calendarCount || 0) > 0;
       return false;
     });
   }

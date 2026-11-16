@@ -8,9 +8,10 @@ import TV_HTML from "./tv.html";
 import ADMIN_HTML from "./admin.html";
 import MENU_JS from "./static/menu.js";
 import MENU_CSS from "./static/menu.css";
+import CAL_JS from "./static/cal.js";
 
 const DEFAULT_SETTINGS = {
-  calendar: "",               // Google Calendar ID or embed URL
+  calendar: "",               // Google Calendar IDs or .ics addresses, one per line (kept private)
   calendarMode: "WEEK",       // WEEK | MONTH | AGENDA
   calendarZoom: 1.35,         // makes Google's small text readable on a TV
   timezone: "America/New_York",
@@ -32,9 +33,11 @@ export default {
       if (p === "/admin") return html(ADMIN_HTML);
       if (p === "/static/menu.js") return text(MENU_JS, "application/javascript");
       if (p === "/static/menu.css") return text(MENU_CSS, "text/css");
+      if (p === "/static/cal.js") return text(CAL_JS, "application/javascript");
 
       if (p === "/api/state" && request.method === "GET") return json(await getPublicState(env));
       if (p === "/media/slide" && request.method === "GET") return getSlide(env);
+      if (p.startsWith("/api/ics/") && request.method === "GET") return getIcs(env, p.slice(9));
 
       // ---------- admin-only below ----------
       if (p.startsWith("/api/")) {
@@ -44,6 +47,7 @@ export default {
         if (p === "/api/menu" && request.method === "POST") return saveMenu(request, env);
         if (p === "/api/slide" && request.method === "PUT") return saveSlide(request, env);
         if (p === "/api/settings" && request.method === "POST") return saveSettings(request, env);
+        if (p === "/api/settings" && request.method === "GET") return json({ settings: (await getState(env)).settings });
       }
       return json({ error: "Not found" }, 404);
     } catch (err) {
@@ -91,6 +95,11 @@ async function getPublicState(env) {
   const s = await getState(env);
   const settings = Object.assign({}, s.settings);
   delete settings.geminiModel;
+  // calendar addresses can be private (secret iCal links), so the TV only gets a count + a change marker
+  const cals = calendarList(settings.calendar);
+  delete settings.calendar;
+  settings.calendarCount = cals.length;
+  settings.calendarHash = hash(cals.join("\n"));
   return {
     version: s.version,
     menu: s.menu || null,
@@ -126,7 +135,7 @@ async function saveSettings(request, env) {
   const body = await request.json();
   const s = await getState(env);
   const next = Object.assign({}, s.settings);
-  if (typeof body.calendar === "string") next.calendar = body.calendar.split(/[\n,]+/).map(calendarId).filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join("\n");
+  if (typeof body.calendar === "string") next.calendar = calendarList(body.calendar).join("\n");
   if (["WEEK", "MONTH", "AGENDA"].includes(body.calendarMode)) next.calendarMode = body.calendarMode;
   if (typeof body.calendarZoom === "number" && body.calendarZoom >= 0.5 && body.calendarZoom <= 3) next.calendarZoom = body.calendarZoom;
   if (typeof body.timezone === "string" && body.timezone) next.timezone = body.timezone.trim();
@@ -138,7 +147,49 @@ async function saveSettings(request, env) {
   }
   s.settings = next;
   await putState(env, s);
-  return json({ ok: true, state: await getPublicState(env) });
+  return json({ ok: true, state: await getPublicState(env), settings: next });
+}
+
+// ---------------- calendars ----------------
+// One entry per line (commas also work). Each entry is either a Google Calendar ID or a full .ics address
+// (e.g. the calendar's "Secret address in iCal format", which works without making the calendar public).
+function calendarList(raw) {
+  const out = [];
+  for (let line of String(raw || "").split(/[\n,]+/)) {
+    line = line.trim().replace(/^\d+[.)]\s+/, "").replace(/^["']|["']$/g, "");
+    if (!line) continue;
+    if (/^webcal:\/\//i.test(line)) line = "https://" + line.slice(9);
+    const entry = /^https?:\/\/\S+\.ics(\?\S*)?$/i.test(line) ? line.replace(/^http:/i, "https:") : calendarId(line);
+    if (entry && !out.includes(entry)) out.push(entry);
+  }
+  return out;
+}
+function icsUrl(entry) {
+  return /^https:\/\//.test(entry) ? entry : "https://calendar.google.com/calendar/ical/" + encodeURIComponent(entry) + "/public/basic.ics";
+}
+function hash(str) {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
+// The TV asks for calendar #i; the Worker fetches it from Google and passes it straight through.
+async function getIcs(env, idxStr) {
+  const s = await getState(env);
+  const entry = calendarList(s.settings.calendar)[Number(idxStr)];
+  const headers = { "cache-control": "no-store", "access-control-allow-origin": "*" };
+  if (!entry) return new Response("No such calendar", { status: 404, headers });
+  let r;
+  try {
+    r = await fetch(icsUrl(entry), { headers: { "user-agent": "HouseTV/1.0" }, cf: { cacheTtl: 120, cacheEverything: true } });
+  } catch (e) {
+    return new Response("Couldn't reach the calendar", { status: 502, headers });
+  }
+  const type = r.headers.get("content-type") || "";
+  // Google answers a non-public calendar with 404 or a sign-in page instead of calendar data
+  if (!r.ok || !/calendar/i.test(type)) {
+    return new Response("Calendar is not public (or the address is wrong)", { status: 404, headers });
+  }
+  return new Response(r.body, { headers: { ...headers, "content-type": "text/calendar; charset=utf-8" } });
 }
 // Accepts a Calendar ID, embed code, public URL, iCal link or "shareable link" (?cid=...) and returns the plain ID
 function calendarId(raw) {

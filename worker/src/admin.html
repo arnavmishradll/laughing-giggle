@@ -56,6 +56,12 @@
   .now .tile b { display: block; color: var(--navy); font-size: 14px; }
   #login { max-width: 400px; margin: 60px auto; }
   .hidden { display: none !important; }
+  #calStatus { margin-top: 10px; font-size: 14px; }
+  #calStatus .row { display: flex; gap: 8px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--line); }
+  #calStatus .row:first-child { border-top: 0; }
+  #calStatus .sw { flex: none; width: 14px; height: 14px; border-radius: 4px; margin-top: 3px; }
+  #calStatus .bad { color: var(--err); }
+  #calStatus small { display: block; color: var(--muted); word-break: break-all; }
   .spin { display: inline-block; width: 16px; height: 16px; border: 2.5px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: s .8s linear infinite; vertical-align: -3px; margin-right: 8px; }
   @keyframes s { to { transform: rotate(360deg); } }
 </style>
@@ -111,15 +117,15 @@
     <!-- SETTINGS -->
     <div class="card">
       <h2><span class="n">3</span> Calendar &amp; rotation</h2>
-      <p class="sub">Paste each Google Calendar's ID or link, <b>one per line</b>. They all show together in different colors. Each one must be public (Google Calendar → Settings → that calendar → Access permissions).</p>
-      <label class="f">Google Calendar IDs or links (one per line)</label>
+      <p class="sub">Paste each calendar, <b>one per line</b>. Use its <b>Calendar ID</b> if the calendar is public, or its <b>Secret address in iCal format</b> if it isn't (both are in Google Calendar → Settings → that calendar → Integrate calendar). They all show together in different colors.</p>
+      <label class="f">Calendars (one per line)</label>
       <textarea id="calInput" rows="5" placeholder="abc123@group.calendar.google.com&#10;def456@group.calendar.google.com"></textarea>
       <div class="two">
         <div><label class="f">Calendar view</label>
           <select id="calMode"><option value="WEEK">Week</option><option value="MONTH">Month</option><option value="AGENDA">Agenda (list)</option></select></div>
-        <div><label class="f">Text size on TV</label>
-          <select id="calZoom"><option value="1">Normal</option><option value="1.2">Large</option><option value="1.35">Larger</option><option value="1.5">Huge</option></select></div>
+        <div><label class="f">&nbsp;</label><button class="btn ghost" id="calTest" type="button" style="padding:10px">Check calendars</button></div>
       </div>
+      <div id="calStatus"></div>
       <label class="f">Screens (order, on/off, seconds each)</label>
       <div id="screens"></div>
       <details class="edit"><summary>Advanced</summary>
@@ -135,11 +141,12 @@
 </main>
 
 <script src="/static/menu.js"></script>
+<script src="/static/cal.js"></script>
 <script>
 (function () {
   var $ = function (id) { return document.getElementById(id); };
   var pw = localStorage.getItem("tvAdminPw") || "";
-  var state = null, draftMenu = null, slideBlob = null;
+  var state = null, draftMenu = null, slideBlob = null, adminSettings = {};
   var NAMES = { menu: "🍽️ Menu", slide: "🖼️ Slide", calendar: "📅 Calendar" };
 
   function msg(id, text, kind) { var m = $(id); m.className = "msg show " + (kind || "info"); m.innerHTML = text; }
@@ -174,7 +181,10 @@
     loadState();
   }
   function loadState() {
-    return fetch("/api/state?t=" + Date.now()).then(function (r) { return r.json(); }).then(function (s) { state = s; fillStatus(); fillSettings(); });
+    return Promise.all([
+      fetch("/api/state?t=" + Date.now()).then(function (r) { return r.json(); }),
+      api("GET", "/api/settings")
+    ]).then(function (r) { state = r[0]; adminSettings = r[1].settings; fillStatus(); fillSettings(); checkCalendars(); });
   }
 
   function ago(t) {
@@ -188,7 +198,7 @@
     var s = state;
     $("nowMenu").textContent = s.menu ? (s.menu.title || "Uploaded") + " · " + ago(s.menuUpdated) : "Not uploaded";
     $("nowSlide").textContent = s.slide ? "Updated " + ago(s.slide.updated) : "Not uploaded";
-    $("nowCal").textContent = s.settings.calendar ? s.settings.calendar.split("\n").length + " calendar(s), " + s.settings.calendarMode.toLowerCase() + " view" : "Not set";
+    $("nowCal").textContent = s.settings.calendarCount ? s.settings.calendarCount + " calendar(s), " + s.settings.calendarMode.toLowerCase() + " view" : "Not set";
     $("nowRot").textContent = s.settings.screens.filter(function (x) { return x.enabled; }).map(function (x) { return x.id + " " + x.seconds + "s"; }).join(" → ") || "Nothing on";
   }
 
@@ -297,9 +307,8 @@
   var screens = [];
   function fillSettings() {
     var s = state.settings;
-    $("calInput").value = s.calendar || "";
+    $("calInput").value = adminSettings.calendar || "";
     $("calMode").value = s.calendarMode || "WEEK";
-    var z = String(s.calendarZoom || 1.35); $("calZoom").value = ["1", "1.2", "1.35", "1.5"].indexOf(z) >= 0 ? z : "1.35";
     $("tz").value = s.timezone || "";
     $("model").value = state.geminiModel || "";
     screens = s.screens.map(function (x) { return { id: x.id, enabled: x.enabled, seconds: x.seconds }; });
@@ -326,14 +335,38 @@
       box.appendChild(r);
     });
   }
+  // Try every calendar the same way the TV will, and say which ones work
+  function checkCalendars() {
+    var box = $("calStatus"), lines = (adminSettings.calendar || "").split("\n").filter(Boolean);
+    if (!lines.length) { box.innerHTML = ""; return; }
+    box.innerHTML = '<span class="spin"></span>Checking ' + lines.length + " calendar(s)…";
+    CalFeed.load(lines.length, (state && state.settings.timezone) || "America/New_York", function (data) {
+      var now = Date.now(), bad = 0, h = "";
+      data.sources.forEach(function (src, i) {
+        var short = lines[i].length > 60 ? lines[i].slice(0, 28) + "…" + lines[i].slice(-24) : lines[i];
+        if (src.ok) {
+          var upcoming = data.events.filter(function (e) { return e.cal === i && (e.allDay ? true : e.end >= now); }).length;
+          h += '<div class="row"><span class="sw" style="background:' + CalFeed.color(i) + '"></span><div>✅ <b>' + MenuRender.esc(src.name || "Calendar " + (i + 1)) + "</b> · " + upcoming + " upcoming events<small>" + MenuRender.esc(short) + "</small></div></div>";
+        } else {
+          bad++;
+          h += '<div class="row"><span class="sw" style="background:#ccc"></span><div class="bad">❌ Can\'t read this calendar<small>' + MenuRender.esc(short) + "</small></div></div>";
+        }
+      });
+      if (bad) h += '<div class="msg show err" style="margin-top:8px">The ❌ ones aren\'t public, so the TV can\'t see them. Either ask the calendar\'s owner to turn on <b>Make available to public</b>, or replace that line with the calendar\'s <b>Secret address in iCal format</b> (Settings → that calendar → Integrate calendar).</div>';
+      box.innerHTML = h;
+    });
+  }
+  $("calTest").onclick = checkCalendars;
+
   $("saveSettings").onclick = function () {
     var b = this; b.disabled = true;
     api("POST", "/api/settings", {
-      calendar: $("calInput").value, calendarMode: $("calMode").value, calendarZoom: Number($("calZoom").value),
+      calendar: $("calInput").value, calendarMode: $("calMode").value,
       timezone: $("tz").value || "America/New_York", geminiModel: $("model").value, screens: screens,
     }).then(function (j) {
-      state = j.state; fillStatus(); fillSettings();
-      msg("setMsg", "✅ Saved. The TV updates within a minute." + (state.settings.calendar ? "<br>Calendars in use (" + state.settings.calendar.split("\n").length + "):<br><b>" + MenuRender.esc(state.settings.calendar).replace(/\n/g, "<br>") + "</b>" : ""), "ok");
+      state = j.state; adminSettings = j.settings || adminSettings; fillStatus(); fillSettings();
+      msg("setMsg", "✅ Saved. The TV updates within a minute.", "ok");
+      checkCalendars();
     }).catch(function (e) { if (e.status === 401) return showLogin(); msg("setMsg", e.message, "err"); })
       .then(function () { b.disabled = false; });
   };
